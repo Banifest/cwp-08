@@ -1,13 +1,12 @@
 const fs = require("fs");
 
-let jsonFile = process.argv[2];
+let jsonFile = `work/${process.argv[2]}`;
 let X = process.argv[3];
 
 fs.writeFile(jsonFile, "[]", ()=>
 {
     setInterval(()=>
                {
-                   console.log(1);
                    fs.stat(jsonFile, (err, status)=>
                    {
                        let writer =  fs.createWriteStream(jsonFile, {flags: 'r+', start: (status.size - 1)});
