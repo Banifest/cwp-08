@@ -42,16 +42,31 @@ const server = net.createServer((client) =>
         }
         else if (data.search(/add ?/) !== -1)
         {
+            console.log(data);
             client.id = Date.now() + seed++;
             data = data.substring(4);
 
-            fs.writeFile(`work/${client.id}.json`, '', () =>
+            startedWorkers[client.id] =
             {
-                startedWorkers[client.id] = {process: child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]),
-                    date: new Date(),
-                    fileName: `work/${client.id}.json`};
-                !startedWorkers.length ? startedWorkers.length = 1: startedWorkers.length++;
-                client.write(`{ id: ${client.id}, startedOn: "${startedWorkers[client.id].date}"}`);
+                process: child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]),
+                date: new Date(),
+                fileName: `work/${client.id}.json`
+            };
+
+            !startedWorkers.length ? startedWorkers.length = 1 : startedWorkers.length++;
+            client.write(`{ id: ${client.id}, startedOn: "${startedWorkers[client.id].date}"}`);
+        }
+        else if (data.search(/remove ?/) !== -1)
+        {
+            data = data.substring(7);
+            console.log(data);
+            startedWorkers[data].process.kill();
+            fs.readFile(startedWorkers[data].fileName, (err, info) =>
+            {
+                client.write(`{id: ${data}, startedOn: ${startedWorkers[data].date}, numbers: ${info}}`, () =>
+                {
+                    startedWorkers[data] = undefined;
+                });
             });
         }
         else
