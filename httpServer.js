@@ -1,13 +1,55 @@
-const child_process = require("child_process");
+const net = require('net');
+const http = require('http');
+const fs = require('fs');
+const express = require('express');
 
-a = child_process.spawn('node', ['worker.js', '2.json', '1']);
+const app = express();
+app.use(express.static('public'));
 
-/*a =child_process.exec(`node worker.js 2.json 1`, (err, stdout,stderr)=>
+const hostname = '127.0.0.1';
+const port = 3450;
+const tcpPort = 3453;
+
+const client = new net.Socket();
+client.setEncoding('utf8');
+
+
+
+
+app.post('/workers', (req, res)=>
 {
-    console.log(err);
+    client.connect(tcpPort, ()=>
+    {
+        client.write('1');
+    });
+
+    client.on('data', (data)=>
+    {
+        console.log(data);
+        if(data === 'ACS')
+        {
+            client.write('getWorkers');
+        }
+        else
+        {
+            console.log(data);
+            client.destroy();
+        }
+    });
 });
-console.log(a.kill());*/
-setInterval(()=>
-            {
-                a.kill();
-            }, 5000);
+
+app.post('/workers/add', (req, res) =>
+{
+    client.connect(tcpPort, () =>
+    {
+        client.write(`add ${req.X}`);
+    });
+
+    client.on('data', (data) =>
+    {
+        res.end(JSON.stringify(data));
+        client.destroy();
+    });
+});
+
+app.listen(port, ()=>{});

@@ -4,9 +4,6 @@ const child_process = require("child_process");
 
 const port = 3453;
 let seed = 0;
-
-child_process.exec(`node worker.js ${client.id} ${Number(data)}`);
-
 const startedWorkers = {};
 
 const server = net.createServer((client) =>
@@ -16,14 +13,52 @@ const server = net.createServer((client) =>
 
     client.on('data', (data) =>
     {
-        if(!client.id)
+        if (data === 'getWorkers')
+        {
+            new Promise((resolve) =>
+                        {
+                            const answer = [];
+                            for (let iter in startedWorkers)
+                            {
+                                let member = startedWorkers[iter];
+                                console.log('iter');
+                                console.log(member);
+                                fs.readFile(member.fileName.toString(), (err, info) =>
+                                {
+                                    console.log(err);
+                                    console.log(info.toString());
+                                    answer.push({id: member.process, startedOn: member.date, numbers: info});
+                                    if (answer.length === startedWorkers.length)
+                                    {
+                                        resolve(answer);
+                                    }
+                                });
+                            }
+                        }).then((answer) =>
+                                {
+                                    console.log(JSON.stringify(answer));
+                                    client.write(JSON.stringify(answer));
+                                });
+        }
+        else if (data.search(/add ?/) !== -1)
         {
             client.id = Date.now() + seed++;
-            startedWorkers[client.id] = child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]);
+            data = data.substring(4);
+
+            fs.writeFile(`work/${client.id}.json`, '', () =>
+            {
+                startedWorkers[client.id] = {process: child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]),
+                    date: new Date(),
+                    fileName: `work/${client.id}.json`};
+                !startedWorkers.length ? startedWorkers.length = 1: startedWorkers.length++;
+                client.write(`{ id: ${client.id}, startedOn: "${startedWorkers[client.id].date}"}`);
+            });
         }
         else
         {
-            startedWorkers[data].kill();
+            console.log('aaa');
+            startedWorkers[data].process.kill();
+            startedWorkers[data] = undefined;
         }
     });
 
