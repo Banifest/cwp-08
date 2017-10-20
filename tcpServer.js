@@ -14,75 +14,75 @@ const server = net.createServer((client) =>
 
     client.on('data', (data) =>
     {
-        console.log(data);
-        if (data === 'getWorkers')
+        try
         {
-            if (!startedWorkers.length)
+            if (data === 'getWorkers')
             {
-                client.write('[]');
-            }
-            else
-            {
-                const answer = [];
-                //console.log(startedWorkers);
-                for (let iter in startedWorkers)
+                if (!startedWorkers.length)
                 {
-                    if (iter && Number.isInteger(Number(iter)))
+                    client.write('[]');
+                }
+                else
+                {
+                    const answer = [];
+                    for (let iter in startedWorkers)
                     {
-                        let member = startedWorkers[iter];
-                        //console.log(member);
-                        fs.readFile(member.fileName, (err, info) =>
+                        if (startedWorkers[iter] && Number.isInteger(Number(iter)))
                         {
-                            answer.push({id: iter, startedOn: member.date, numbers: info});
-                            console.log(err);
-                            // console.log(startedWorkers.length);
-                            if (answer.length === startedWorkers.length)
+                            let member = startedWorkers[iter];
+                            fs.readFile(member.fileName, (err, info) =>
                             {
-                                console.log(answer);
-                                client.write(JSON.stringify(answer));
-                            }
-                        });
+                                answer.push({id: iter, startedOn: member.date, numbers: info});
+
+                                if (answer.length === startedWorkers.length)
+                                {
+                                    client.write(JSON.stringify(answer));
+                                }
+                            });
+                        }
                     }
                 }
             }
-        }
-        else if (data.search(/add ?/) !== -1)
-        {
-            console.log(data);
-            client.id = Date.now() + seed++;
-            data = data.substring(4);
-
-            //console.log(startedWorkers);
-            startedWorkers[client.id] =
+            else if (data.search(/add ?/) !== -1)
             {
-                process: child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]),
-                date: new Date(),
-                fileName: `work/${client.id}.json`
-            };
+                console.log(data);
+                client.id = Date.now() + seed++;
+                data = data.substring(4);
 
-            !startedWorkers.length ? startedWorkers.length = 1 : startedWorkers.length++;
-            client.write(`{ id: ${client.id}, startedOn: "${startedWorkers[client.id].date}"}`);
-        }
-        else if (data.search(/remove ?/) !== -1)
-        {
-            data = data.substring(7);
-            console.log(data);
-            startedWorkers[data].process.kill();
-            fs.readFile(startedWorkers[data].fileName, (err, info) =>
+                //console.log(startedWorkers);
+                startedWorkers[client.id] =
+                    {
+                        process: child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]),
+                        date: new Date(),
+                        fileName: `work/${client.id}.json`
+                    };
+
+                !startedWorkers.length ? startedWorkers.length = 1 : startedWorkers.length++;
+                client.write(`{ id: ${client.id}, startedOn: "${startedWorkers[client.id].date}"}`);
+            }
+            else if (data.search(/remove ?/) !== -1)
             {
-                client.write(`{id: ${data}, startedOn: ${startedWorkers[data].date}, numbers: ${info}}`, () =>
+                data = data.substring(7);
+                console.log(data);
+                if (data in startedWorkers)
                 {
-                    startedWorkers.length--;
-                    startedWorkers[data] = undefined;
-                });
-            });
+                    startedWorkers[data].process.kill();
+                    fs.readFile(startedWorkers[data].fileName, (err, info) =>
+                    {
+                        client.write(`{id: ${data}, startedOn: ${startedWorkers[data].date}, numbers: ${info}}`, () =>
+                        {
+                            startedWorkers.length--;
+                            startedWorkers[data] = undefined;
+                        });
+                    });
+                }
+            }
         }
-        else
+        catch (err)
         {
-            console.log('aaa');
-            startedWorkers[data].process.kill();
-            startedWorkers[data] = undefined;
+            client.write("O'h NO!");
         }
+
     });
 
     client.on('end', () =>
