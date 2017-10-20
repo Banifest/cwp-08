@@ -5,6 +5,7 @@ const child_process = require("child_process");
 const port = 3453;
 let seed = 0;
 const startedWorkers = {};
+console.log(startedWorkers);
 
 const server = net.createServer((client) =>
 {
@@ -13,32 +14,37 @@ const server = net.createServer((client) =>
 
     client.on('data', (data) =>
     {
+        console.log(data);
         if (data === 'getWorkers')
         {
-            new Promise((resolve) =>
+            if (!startedWorkers.length)
+            {
+                client.write('[]');
+            }
+            else
+            {
+                const answer = [];
+                //console.log(startedWorkers);
+                for (let iter in startedWorkers)
+                {
+                    if (iter && Number.isInteger(Number(iter)))
+                    {
+                        let member = startedWorkers[iter];
+                        //console.log(member);
+                        fs.readFile(member.fileName, (err, info) =>
                         {
-                            const answer = [];
-                            for (let iter in startedWorkers)
+                            answer.push({id: iter, startedOn: member.date, numbers: info});
+                            console.log(err);
+                            // console.log(startedWorkers.length);
+                            if (answer.length === startedWorkers.length)
                             {
-                                let member = startedWorkers[iter];
-                                console.log('iter');
-                                console.log(member);
-                                fs.readFile(member.fileName.toString(), (err, info) =>
-                                {
-                                    console.log(err);
-                                    console.log(info.toString());
-                                    answer.push({id: member.process, startedOn: member.date, numbers: info});
-                                    if (answer.length === startedWorkers.length)
-                                    {
-                                        resolve(answer);
-                                    }
-                                });
+                                console.log(answer);
+                                client.write(JSON.stringify(answer));
                             }
-                        }).then((answer) =>
-                                {
-                                    console.log(JSON.stringify(answer));
-                                    client.write(JSON.stringify(answer));
-                                });
+                        });
+                    }
+                }
+            }
         }
         else if (data.search(/add ?/) !== -1)
         {
@@ -46,6 +52,7 @@ const server = net.createServer((client) =>
             client.id = Date.now() + seed++;
             data = data.substring(4);
 
+            //console.log(startedWorkers);
             startedWorkers[client.id] =
             {
                 process: child_process.spawn('node', ['worker.js', `${client.id}.json`, Number(data)]),
@@ -65,6 +72,7 @@ const server = net.createServer((client) =>
             {
                 client.write(`{id: ${data}, startedOn: ${startedWorkers[data].date}, numbers: ${info}}`, () =>
                 {
+                    startedWorkers.length--;
                     startedWorkers[data] = undefined;
                 });
             });

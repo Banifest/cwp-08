@@ -22,21 +22,13 @@ app.post('/workers', (req, res)=>
 {
     client.connect(tcpPort, ()=>
     {
-        client.write('1');
+        client.write('getWorkers');
     });
 
-    client.on('data', (data)=>
+    client.on('data', (data) =>
     {
-        console.log(data);
-        if(data === 'ACS')
-        {
-            client.write('getWorkers');
-        }
-        else
-        {
-            console.log(data);
-            client.destroy();
-        }
+        res.end(JSON.stringify(data));
+        client.destroy();
     });
 });
 
